@@ -51,7 +51,7 @@ class Game(PaiaGame):
     def reset(self):
         self.frame_count = 0
         self.game_mode.reset()
-        self.rank()
+        # self.rank()
 
     def get_scene_init_data(self) -> dict:
         """

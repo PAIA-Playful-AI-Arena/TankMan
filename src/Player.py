@@ -3,7 +3,6 @@ import random
 import pygame.draw
 from mlgame.utils.enum import get_ai_name
 from mlgame.view.view_model import create_asset_init_data, create_image_view_data, create_rect_view_data
-
 from .env import TURN_LEFT_CMD, TURN_RIGHT_CMD, FORWARD_CMD, BACKWARD_CMD, \
     AIM_LEFT_CMD, AIM_RIGHT_CMD, SHOOT, SHOOT_COOLDOWN, IMAGE_DIR, ORANGE, BLUE, IS_DEBUG
 from .Gun import Gun
@@ -63,6 +62,7 @@ class Player(pygame.sprite.Sprite):
         self.gun = Gun(self.id, self.rect.topleft, (self.rect.width, self.rect.height), **kwargs)
 
         self.calculate_quadrant()
+        self.pre_rect = self.rect        
 
     def calculate_quadrant(self):
         mid_x = self.play_rect_area.width // 2
@@ -75,6 +75,7 @@ class Player(pygame.sprite.Sprite):
         )
 
     def update(self, command: dict):
+        self.pre_rect = self.rect   
         self.used_frame += 1
         if self.lives <= 0:
             self.is_alive = False
@@ -96,13 +97,12 @@ class Player(pygame.sprite.Sprite):
             self.is_turn_right = False
             self.is_turn_left = False
 
-        if self.rect.right > self.play_rect_area.right \
-                or self.rect.left < self.play_rect_area.left \
-                or self.rect.bottom > self.play_rect_area.bottom \
-                or self.rect.top < self.play_rect_area.top:
-            self.collide_with_walls()
-        else:
-            self.act(command[get_ai_name(self.no - 1)])
+        self.act(command[get_ai_name(self.no - 1)])
+        # check tank if out of playground
+        self.check_if_outofplayground()
+
+    def check_if_outofplayground(self):
+        self.rect.clamp_ip(self.play_rect_area)
 
     def rotate(self):
         self.rot = self.rot % 360
@@ -248,15 +248,7 @@ class Player(pygame.sprite.Sprite):
         self.rot -= self.rot_speed
 
     def collide_with_walls(self):
-        # Retrieve last two actions
-        last_actions = self.action_history[-1:]
-
-        # Reverse actions
-        for action in reversed(last_actions):
-            if action == FORWARD_CMD:
-                self.backward()
-            elif action == BACKWARD_CMD:
-                self.forward()
+        self.rect = self.pre_rect        
 
     def collide_with_bullets(self):
         self.lives -= 1

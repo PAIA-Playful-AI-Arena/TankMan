@@ -1,5 +1,5 @@
 import random
-
+import time
 import pygame.event
 import pygame.event
 from src.game_module.SoundController import create_sounds_data, create_bgm_data, SoundController
@@ -107,6 +107,12 @@ class TeamBattleMode:
                 create_image_view_data(f"floor_{no}", pos[0], pos[1], 50, 50, 0))
         self.obj_list = [self.oil_stations, self.bullet_stations, self.bullets, self.all_players, self.guns, self.walls]
         self.background.append(create_image_view_data("border", 0, -50, self.scene_width, WINDOW_HEIGHT, 0))
+        # init play get new score time
+        self.team_green_maxScoreTime = time.time()
+        self.team_blue_maxScoreTime = time.time()
+        self.team_green_maxScore = 0
+        self.team_blue_maxScore = 0
+        self.change_player_pos()
 
     def update(self, command: dict):
         # refactor
@@ -123,6 +129,16 @@ class TeamBattleMode:
         self.get_player_end()
         if self.used_frame >= self.frame_limit:
             self.get_game_end()
+        
+        
+        # check if getting new score
+        if self.team_green_score > self.team_green_maxScore:
+            self.team_green_maxScore = self.team_green_score
+            self.team_green_maxScoreTime = time.time()
+
+        if self.team_blue_score > self.team_blue_maxScore:
+            self.team_blue_maxScore = self.team_blue_score
+            self.team_blue_maxScoreTime = time.time()            
 
     def reset(self):
         # reset init game
@@ -152,8 +168,18 @@ class TeamBattleMode:
         elif self.team_green_score < self.team_blue_score:
             self.set_result(GameResultState.FINISH, "BLUE_TEAM_WIN")
         else:
-            self.set_result(GameResultState.FINISH, GameStatus.GAME_DRAW)
-
+            # if both the teams have a score of 0
+            if self.team_green_maxScore == 0 and self.team_blue_maxScore == 0:
+                conditions = ["GREEN_TEAM_WIN","BLUE_TEAM_WIN"]
+                chosen_condition = random.choice(conditions)
+                self.set_result(GameResultState.FINISH, chosen_condition)                
+            else:                
+            # if both teams have scored and their scores are equal
+                if self.team_green_maxScoreTime > self.team_blue_maxScoreTime:
+                    self.set_result(GameResultState.FINISH, "BLUE_TEAM_WIN")                    
+                else:
+                    self.set_result(GameResultState.FINISH, "GREEN_TEAM_WIN")                    
+    
     def set_result(self, state: str, status: str):
         self.state = state
         self.status = status
@@ -175,24 +201,19 @@ class TeamBattleMode:
                 get_res["state"] = self.state
                 get_res["status"] = self.status
                 get_res["used_frame"] = self.used_frame
+                if team_id == "green":
+                    timestamp = self.team_green_maxScoreTime
+                else:
+                    timestamp = self.team_blue_maxScoreTime
+                get_res["latestScoreTime"] = "{:.3f}".format(timestamp)
                 res.append(get_res)
 
-        # Sort the list by score in descending order
-        players_sorted = sorted(res, key=lambda x: x["score"], reverse=True)
-
-        # Assign ranks
-        current_rank = 1
-        for i in range(len(players_sorted)):
-            if i > 0 and players_sorted[i]["score"] < players_sorted[i - 1]["score"]:
-                current_rank = i + 1
-            players_sorted[i]["rank"] = current_rank
-
-        # Update the original list with ranks
-        for player in res:
-            for ranked_player in players_sorted:
-                if player["player"] == ranked_player["player"]:
-                    player["rank"] = ranked_player["rank"]
-                    break
+        for player in res:            
+            if player["no"].find("green")!=-1:
+                player["rank"] = 1 if player["status"] == "GREEN_TEAM_WIN" else 2
+            elif player["no"].find("blue")!=-1:
+                player["rank"] = 1 if player["status"] == "BLUE_TEAM_WIN" else 2
+        
         sorted_res = sorted(res, key=lambda x: x["rank"])
 
         # Result
